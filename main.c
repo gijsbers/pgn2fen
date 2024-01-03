@@ -4,6 +4,8 @@
  *  Author: mate_amargo - Juan Alberto Regalado Galván
  *  https://github.com/mate-amargo/pgn2fen
  *  -------------------------------------------------------
+ *  Improvements: Bert Gijsbers https://github.com/gijsbers
+ *  -------------------------------------------------------
  *
  *  Usage:
  *  pgn2fen input_game.pgn move [w/b] [output_position.fen]
@@ -30,12 +32,13 @@ int main (int argc, char **argv) {
   int move /* move number argument */;
   char side = 'w'; /* Default side is white */
   FILE   *finput, *foutput = NULL;
+  char fen[200] = "";
 
   /* Check the program arguments */
   if ((argc-1 >= NARGS) && (argc-1 <= NARGS + NARGSOPT)) {
     if ((finput = fopen(argv[1], "r")) == NULL) {
       printf("*** Error: The input file \"%s\" could not be opened\n", argv[1]);
-      exit(EXIT_FAILURE);        
+      exit(EXIT_FAILURE);
     } else if ((move = atoi(argv[2])) <= 0) {
       fclose(finput);
       printf("*** Error: Invalid move number \"%s\"\n", argv[2]);
@@ -51,7 +54,7 @@ int main (int argc, char **argv) {
           }
         } else if ((foutput = fopen(argv[3], "w")) == NULL) {
             printf("*** Error: The output file \"%s\" could not be opened\n", argv[3]);
-            exit(EXIT_FAILURE);        
+            exit(EXIT_FAILURE);
         }
       } else { /* Four arguments */
         if (strlen(argv[3]) == 1) {
@@ -68,7 +71,7 @@ int main (int argc, char **argv) {
         }
         if ((foutput = fopen(argv[4], "w")) == NULL) {
             printf("*** Error: The output file \"%s\" could not be opened\n", argv[4]);
-            exit(EXIT_FAILURE);        
+            exit(EXIT_FAILURE);
         }
 
       }
@@ -93,10 +96,10 @@ int main (int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   /* Everything is ok, now let's work: */
-  
+
   if (foutput == NULL) /* They didn't specify an output file so write to stdout */
     foutput = stdout;
-  
+
   /* List to hold the moves */
   struct tlist {
     char move[8]; /* Max length if we don't count checks/mates is 6, e.g. exd8=Q, Nd7xe5 */
@@ -126,7 +129,19 @@ int main (int argc, char **argv) {
     while (!breakout && (c = fgetc(finput)) != EOF) {
       switch (c) {
         case '[': /* It's a tag, read past it */
-          while (fgetc(finput) != '\n');
+            {
+                char buf[200] = "";
+                fgets(buf, 200, finput);
+                if (!strncmp(buf, "FEN \"", 5)) {
+                    int len = strlen(buf);
+                    if (buf[len - 1] == '\n')
+                        len--;
+                    if (buf[len - 1] == '"')
+                        len--;
+                    buf[len] = '\0';
+                    memcpy(fen, buf + 5, len + 1);
+                }
+            }
           break;
         case '(': /* Variation, read past it, after the space */
           while (fgetc(finput) != ')');
@@ -161,8 +176,8 @@ int main (int argc, char **argv) {
             }
           }
           if (feof(finput)) { /* We reached EOF while saving the last move! */
-            y->move[i++] = d; 
-            breakout = 1; 
+            y->move[i++] = d;
+            breakout = 1;
             clearerr(finput); /* Clear the EOF flag */
           }
           break;
@@ -211,13 +226,60 @@ int main (int argc, char **argv) {
 
     /* 1 */ {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
 
-    /*        a    b    c    d    e    f    g    h        */  
+    /*        a    b    c    d    e    f    g    h        */
   };
+
+  if (fen[0]) {
+      int r = 0;
+      int c = 0;
+      for (char *s = fen; *s; ++s) {
+          switch (*s) {
+              case '0':
+              case '1':
+              case '2':
+              case '3':
+              case '4':
+              case '5':
+              case '6':
+              case '7':
+              case '8':
+                  for (; *s > '0'; *s = *s - 1, c = c + 1) {
+                      board[r][c] = '1';
+                  }
+                  break;
+              case 'r':
+              case 'n':
+              case 'b':
+              case 'q':
+              case 'k':
+              case 'p':
+              case 'R':
+              case 'N':
+              case 'B':
+              case 'Q':
+              case 'K':
+              case 'P':
+                  board[r][c++] = *s;
+                  break;
+              case '/':
+                  r++;
+                  c = 0;
+                  break;
+              case ' ':
+                  s += strlen(s) - 1;
+                  break;
+              default:
+                  fprintf(stderr, "Unexpected character '%c' (%d) in FEN\n",
+                          *s, *s);
+                  exit(1);
+          }
+      }
+  }
 
   char castling = CASTLEK | CASTLEQ | CASTLEk | CASTLEq; /* Third field of the FEN: KQkq, each letter represents a bit */
   int turn = WHITE;
   int enpassant = 0;
-  char target; /* Enpassant traget square. If it's a white pawn push the rank will always be 3, and 6 for black */
+  char target = '\0'; /* Enpassant traget square. If it's a white pawn push the rank will always be 3, and 6 for black */
   char rook[2]; /* Rook origin for castling tests */
   int found = 0;
   ply = 0; /* Re-using variables, yay! This time it will be the ply clock, the fifth field of the FEN */
@@ -305,8 +367,8 @@ int main (int argc, char **argv) {
               for (found = 0, i = RANKS - (x->move[3] - '0') + 1; i < RANKS; i++) /* Look down on the file */
                 if (board[i][x->move[1] - 'a'] == c) {
                   board[i][x->move[1] - 'a'] = '1';
-                  rook[0] = x->move[1]; 
-                  rook[1] = '0' + (RANKS - i); 
+                  rook[0] = x->move[1];
+                  rook[1] = '0' + (RANKS - i);
                   found = 1;
                   break;
                 } else if (board[i][x->move[1] - 'a'] != '1') /* We hit a piece */
@@ -314,8 +376,8 @@ int main (int argc, char **argv) {
               for (i = RANKS - (x->move[3] - '0') - 1; !found && i >= 0; i--) /* Look up on the file */
                 if (board[i][x->move[1] - 'a'] == c) {
                   board[i][x->move[1] - 'a'] = '1';
-                  rook[0] = x->move[1]; 
-                  rook[1] = '0' + (RANKS - i); 
+                  rook[0] = x->move[1];
+                  rook[1] = '0' + (RANKS - i);
                   break;
                 } else if (board[i][x->move[1] - 'a'] != '1') /* We hit a piece */
                   break;
@@ -329,8 +391,8 @@ int main (int argc, char **argv) {
               for (found = 0, i = (x->move[2] - 'a') + 1; i < FILES; i++) /* Look to the right on the rank */
                 if (board[RANKS - (x->move[1] - '0')][i] == c) {
                   board[RANKS - (x->move[1] - '0')][i] = '1';
-                  rook[0] = 'a' + i; 
-                  rook[1] = x->move[1]; 
+                  rook[0] = 'a' + i;
+                  rook[1] = x->move[1];
                   found = 1;
                   break;
                 } else if (board[RANKS - (x->move[1] - '0')][i] != '1') /* We hit a piece */
@@ -338,8 +400,8 @@ int main (int argc, char **argv) {
               for (i = (x->move[2] - 'a') - 1; !found && i >= 0; i--) /* Look to the left on the rank */
                 if (board[RANKS - (x->move[1] - '0')][i] == c) {
                   board[RANKS - (x->move[1] - '0')][i] = '1';
-                  rook[0] = 'a' + i; 
-                  rook[1] = x->move[1]; 
+                  rook[0] = 'a' + i;
+                  rook[1] = x->move[1];
                   break;
                 } else if (board[RANKS - (x->move[1] - '0')][i] != '1') /* We hit a piece */
                   break;
@@ -356,8 +418,8 @@ int main (int argc, char **argv) {
           for (found = 0, i = RANKS - (x->move[2] - '0') + 1; i < RANKS; i++) /* Look down on the file */
             if (board[i][x->move[1] - 'a'] == c) {
               board[i][x->move[1] - 'a'] = '1';
-              rook[0] = x->move[1]; 
-              rook[1] = '0' + (RANKS - i); 
+              rook[0] = x->move[1];
+              rook[1] = '0' + (RANKS - i);
               found = 1;
               break;
             } else if (board[i][x->move[1] - 'a'] != '1') /* We hit a piece */
@@ -365,8 +427,8 @@ int main (int argc, char **argv) {
           for (i = RANKS - (x->move[2] - '0') - 1; !found && i >= 0; i--) /* Look up on the file */
             if (board[i][x->move[1] - 'a'] == c) {
               board[i][x->move[1] - 'a'] = '1';
-              rook[0] = x->move[1]; 
-              rook[1] = '0' + (RANKS - i); 
+              rook[0] = x->move[1];
+              rook[1] = '0' + (RANKS - i);
               found = 1;
               break;
             } else if (board[i][x->move[1] - 'a'] != '1') /* We hit a piece */
@@ -374,8 +436,8 @@ int main (int argc, char **argv) {
           for (i = (x->move[1] - 'a') + 1; !found && i < FILES; i++) /* Look to the right on the rank */
             if (board[RANKS - (x->move[2] - '0')][i] == c) {
               board[RANKS - (x->move[2] - '0')][i] = '1';
-              rook[0] = 'a' + i; 
-              rook[1] = x->move[2]; 
+              rook[0] = 'a' + i;
+              rook[1] = x->move[2];
               found = 1;
               break;
             } else if (board[RANKS - (x->move[2] - '0')][i] != '1') /* We hit a piece */
@@ -383,8 +445,8 @@ int main (int argc, char **argv) {
           for (i = (x->move[1] - 'a') - 1; !found && i >= 0; i--) /* Look to the left on the rank */
             if (board[RANKS - (x->move[2] - '0')][i] == c) {
               board[RANKS - (x->move[2] - '0')][i] = '1';
-              rook[0] = 'a' + i; 
-              rook[1] = x->move[2]; 
+              rook[0] = 'a' + i;
+              rook[1] = x->move[2];
               break;
             } else if (board[RANKS - (x->move[2] - '0')][i] != '1') /* We hit a piece */
               break;
@@ -430,7 +492,7 @@ int main (int argc, char **argv) {
                 found = 0;
             }  else
               found = 0;
-          } 
+          }
           if (!found && x->move[2] < '8') { /* Above, level +1 */
             if (x->move[1] > 'b' && board[RANKS - (x->move[2] - '0') - 1][(x->move[1] - 'a') - 2] == c)
               board[RANKS - (x->move[2] - '0') - 1][(x->move[1] - 'a') - 2] = '1';
@@ -497,7 +559,7 @@ int main (int argc, char **argv) {
         enpassant = 0; /* Piece move cancels enpassant opportunity */
         break;
       case 'B': /* Bishop move */
-        /* In the ridiculous case that they promote to bishop, we'll have to disambiguate.*/ 
+        /* In the ridiculous case that they promote to bishop, we'll have to disambiguate.*/
         /* In the more ridiculous case that there's at least 3 same coloured bishops, we'll have rank and file, e.g. Bg8xd5 */
         c = (turn)?'B':'b';
         /* Remove "x" if any */
@@ -543,17 +605,17 @@ int main (int argc, char **argv) {
         } else if (strlen(x->move) == 4) {
           /* Set origin square */
           if (x->move[1] > '8') { /* It's a letter, the origin file is given to us. Bbe4 */
-            if (abs(x->move[1] - x->move[2]) <= RANKS - (x->move[3] - '0') && 
+            if (abs(x->move[1] - x->move[2]) <= RANKS - (x->move[3] - '0') &&
             board[RANKS - (x->move[3] - '0') - abs(x->move[1] - x->move[2])][x->move[1] - 'a'] == c) /* / */
               board[RANKS - (x->move[3] - '0') - abs(x->move[1] - x->move[2])][x->move[1] - 'a'] = '1';
-            else if (abs(x->move[1] - x->move[2]) < (x->move[3] - '0') && 
+            else if (abs(x->move[1] - x->move[2]) < (x->move[3] - '0') &&
             board[RANKS - (x->move[3] - '0') + abs(x->move[1] - x->move[2])][x->move[1] - 'a'] == c) /* \ */
               board[RANKS - (x->move[3] - '0') + abs(x->move[1] - x->move[2])][x->move[1] - 'a'] = '1';
           }  else { /* It's a number, i.e. the origin rank is given to us */
-            if ((x->move[2] - 'a') + abs(x->move[3] - x->move[1]) < FILES && 
+            if ((x->move[2] - 'a') + abs(x->move[3] - x->move[1]) < FILES &&
             board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') + abs(x->move[3] - x->move[1])] == c) /* / */
               board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') + abs(x->move[3] - x->move[1])] = '1';
-            else if (abs(x->move[3] - x->move[1]) < (x->move[2] - 'a') && 
+            else if (abs(x->move[3] - x->move[1]) < (x->move[2] - 'a') &&
             board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') - abs(x->move[3] - x->move[1])] == c) /* \ */
               board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') - abs(x->move[3] - x->move[1])] = '1';
           }
@@ -643,22 +705,22 @@ int main (int argc, char **argv) {
           /* Bishop-like: */
           found = 0;
           if (x->move[1] > '8') { /* It's a letter, the origin file is given to us. Bbe4 */
-            if (abs(x->move[1] - x->move[2]) <= RANKS - (x->move[3] - '0') && 
+            if (abs(x->move[1] - x->move[2]) <= RANKS - (x->move[3] - '0') &&
             board[RANKS - (x->move[3] - '0') - abs(x->move[1] - x->move[2])][x->move[1] - 'a'] == c) { /* / */
               board[RANKS - (x->move[3] - '0') - abs(x->move[1] - x->move[2])][x->move[1] - 'a'] = '1';
               found = 1;
-            } else if (abs(x->move[1] - x->move[2]) < (x->move[3] - '0') && 
+            } else if (abs(x->move[1] - x->move[2]) < (x->move[3] - '0') &&
             board[RANKS - (x->move[3] - '0') + abs(x->move[1] - x->move[2])][x->move[1] - 'a'] == c) { /* \ */
               board[RANKS - (x->move[3] - '0') + abs(x->move[1] - x->move[2])][x->move[1] - 'a'] = '1';
               found = 1;
             }
           }  else { /* It's a number, i.e. the origin rank is given to us */
-            if ((x->move[2] - 'a') + abs(x->move[3] - x->move[1]) < FILES && 
+            if ((x->move[2] - 'a') + abs(x->move[3] - x->move[1]) < FILES &&
             board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') + abs(x->move[3] - x->move[1])] == c) { /* / */
               board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') + abs(x->move[3] - x->move[1])] = '1';
               found = 1;
             }
-            else if (abs(x->move[3] - x->move[1]) < (x->move[2] - 'a') && 
+            else if (abs(x->move[3] - x->move[1]) < (x->move[2] - 'a') &&
             board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') - abs(x->move[3] - x->move[1])] == c) { /* \ */
               board[RANKS - (x->move[1] - '0')][(x->move[2] - 'a') - abs(x->move[3] - x->move[1])] = '1';
               found = 1;
@@ -773,7 +835,7 @@ int main (int argc, char **argv) {
             board[0][6] = 'k';
             board[0][7] = '1';
           }
-        else /* strlen(x->move) == 5; O-O-O */ 
+        else /* strlen(x->move) == 5; O-O-O */
           if (turn) {
             board[7][0] = '1';
             board[7][2] = 'K';
@@ -800,11 +862,12 @@ int main (int argc, char **argv) {
   /* Print the first field of the FEN */
   for (i = 0; i < RANKS-1; i++) {
     c = '0'; /* We'll accumulate the 1's in "c". Reset it for every rank */
-    for (j = 0; j < FILES; j++) 
+    for (j = 0; j < FILES; j++)
       if ('1' == board[i][j])
-        c++; /* ;-P */ 
-      else { 
-        fprintf(foutput, "%c%c", (c != '0')?c:'\0', board[i][j]); /* If we haven't accumulated 1's, don't print c */
+        c++; /* ;-P */
+      else {
+	if (c && c > '0') fputc(c, foutput);
+        fputc(board[i][j], foutput); /* If we haven't accumulated 1's, don't print c */
         c = '0';
       }
     if (c > '0') /* We finished the loop with accumulated 1's! Print it */
@@ -815,9 +878,10 @@ int main (int argc, char **argv) {
   c = '0';
   for (i = RANKS-1, j = 0; j < FILES; j++)
     if ('1' == board[i][j])
-      c++; /* ;-P */ 
-    else { 
-      fprintf(foutput, "%c%c", (c != '0')?c:'\0', board[i][j]); /* If we haven't accumulated 1's, don't print c */
+      c++; /* ;-P */
+    else {
+      if (c && c > '0') fputc(c, foutput);
+      fputc(board[i][j], foutput); /* If we haven't accumulated 1's, don't print c */
       c = '0';
     }
   if (c > '0') /* We finished the loop with accumulated 1's! Print it */
@@ -831,24 +895,37 @@ int main (int argc, char **argv) {
   /* Print the third field of the FEN */
   if (!castling)
     fprintf(foutput, "- ");
-  else  
-    fprintf(foutput, "%c%c%c%c ", (castling & CASTLEK)?'K':'\0', (castling & CASTLEQ)?'Q':'\0', 
-                                  (castling & CASTLEk)?'k':'\0', (castling & CASTLEq)?'q':'\0');
+  else {
+    if (castling & CASTLEK)
+	fputc('K', foutput);
+    if (castling & CASTLEQ)
+	fputc('Q', foutput);
+    if (castling & CASTLEk)
+	fputc('k', foutput);
+    if (castling & CASTLEq)
+	fputc('q', foutput);
+  }
 
   /* Print the fourth field of the FEN */
-  if (enpassant)
-    fprintf(foutput, "%c%d ", target, (side == 'w')?3:6);
+  if (enpassant) {
+      if (target) {
+        fputc(target, foutput);
+        fprintf(foutput, "%d ", (side == 'w')?3:6);
+      }
+  }
   else
     fprintf(foutput, "- ");
 
   /* Print the fifth field of the FEN */
   fprintf(foutput, "%d ", ply);
-  
+
   /* Print the sixth field of the FEN */
   /* Full move: It starts at 1, and is incremented after Black's move. We have the move number in "move" */
   /* All we need to do is add 1 to that if it's the position after black moved, as indicated by "side" */
   fprintf(foutput, "%d\n", (side == 'w')?move:move+1);
+  fflush(foutput);
+  if (foutput != stdout)
+      fclose(foutput);
 
-  exit(EXIT_SUCCESS);
-
+  return 0;
 }
