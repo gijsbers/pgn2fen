@@ -39,7 +39,8 @@ int main (int argc, char **argv) {
     if ((finput = fopen(argv[1], "r")) == NULL) {
       printf("*** Error: The input file \"%s\" could not be opened\n", argv[1]);
       exit(EXIT_FAILURE);
-    } else if ((move = atoi(argv[2])) <= 0) {
+    } else if ((move = atoi(argv[2])) < 0
+            || (move == 0 && strcmp(argv[2], "0"))) {
       fclose(finput);
       printf("*** Error: Invalid move number \"%s\"\n", argv[2]);
       exit(EXIT_FAILURE);
@@ -118,6 +119,32 @@ int main (int argc, char **argv) {
   int blackmove = 0; /* If we want the position after black moved, we have to go one more loop iteration */
   if ('b' == side)
     blackmove = 1;
+
+  /* Parse the tags */
+  while (!feof(finput) && (c = fgetc(finput)) != EOF) {
+      if (c == ' ' || c == '\r' || c == '\n')
+          continue;
+      else if (c == '[') {
+          char buf[200] = "";
+          fgets(buf, 200, finput);
+          if (!strncmp(buf, "FEN \"", 5)) {
+              int len = strlen(buf);
+              if (buf[len - 1] == '\n')
+                  len--;
+              if (buf[len - 1] == '\r')
+                  len--;
+              if (buf[len - 1] == ' ')
+                  len--;
+              if (buf[len - 1] == '"')
+                  len--;
+              buf[len] = '\0';
+              memcpy(fen, buf + 5, len + 1);
+          }
+      }
+      else
+          break;
+  }
+
   /* Load the moves into the linked list */
   while (!feof(finput) && ((ply+blackmove)/2 < move + blackmove)) {
     /* Add a new item to the list */
@@ -135,6 +162,10 @@ int main (int argc, char **argv) {
                 if (!strncmp(buf, "FEN \"", 5)) {
                     int len = strlen(buf);
                     if (buf[len - 1] == '\n')
+                        len--;
+                    if (buf[len - 1] == '\r')
+                        len--;
+                    if (buf[len - 1] == ' ')
                         len--;
                     if (buf[len - 1] == '"')
                         len--;
@@ -904,6 +935,7 @@ int main (int argc, char **argv) {
 	fputc('k', foutput);
     if (castling & CASTLEq)
 	fputc('q', foutput);
+    fputc(' ', foutput);
   }
 
   /* Print the fourth field of the FEN */
