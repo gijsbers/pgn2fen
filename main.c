@@ -364,11 +364,17 @@ int main (int argc, char **argv) {
         } else {
           enpassant = 0;
           /* Set origin square */
-          if (turn && '4' == x->move[1] && board[6][x->move[0] - 'a'] == 'P') { /* The pawn could've came from white's first move */
+          if (turn && '4' == x->move[1] &&
+                  board[6][x->move[0] - 'a'] == 'P' &&
+                  board[5][x->move[0] - 'a'] != 'P') {
+                  /* The pawn could've came from white's first move */
             board[6][x->move[0] - 'a'] = '1';
             enpassant = 1;
             target = x->move[0];
-          }  else if (!turn && '5' == x->move[1] && board[1][x->move[0] - 'a'] == 'p') { /* The pawn could've came from black's first move */
+          }  else if (!turn && '5' == x->move[1] &&
+                  board[1][x->move[0] - 'a'] == 'p' &&
+                  board[2][x->move[0] - 'a'] != 'p') {
+                  /* The pawn could've came from black's first move */
             board[1][x->move[0] - 'a'] = '1';
             enpassant = 1;
             target = x->move[0];
