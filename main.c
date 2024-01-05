@@ -108,7 +108,7 @@ int main (int argc, char **argv) {
   };
 
   struct tlist *list, *x, *y; /* List head pointed by "list", "x" & "y" are auxiliary */
-  list = malloc(sizeof(struct tlist)); /* Create an empty list member to make life easier */
+  list = calloc(1, sizeof(struct tlist)); /* Create an empty list member to make life easier */
   list->next = NULL;
   x = list;
 
@@ -148,7 +148,7 @@ int main (int argc, char **argv) {
   /* Load the moves into the linked list */
   while (!feof(finput) && ((ply+blackmove)/2 < move + blackmove)) {
     /* Add a new item to the list */
-    y = malloc(sizeof(struct tlist));
+    y = calloc(1, sizeof(struct tlist));
     y->next = NULL;
 
     i = 0; /* Set's the position of the move array (of chars) to 0 */
@@ -189,7 +189,8 @@ int main (int argc, char **argv) {
           while (!breakout2 && (c = fgetc(finput)) != EOF) { /* If it's a number keep eating chars */
             switch (c) {
               case '.': /* It's the beginning of a move, so eat the space */
-                fgetc(finput);
+                if ((c = fgetc(finput)) != EOF && c != ' ')
+                    ungetc(c, finput);
                 breakout2 = 1;
                 break;
               /* It's not a number, so store the first number and the following char, and break out the loop */
