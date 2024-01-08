@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #define NARGS 2            /* Mandatory arguments */
 #define NARGSOPT 2        /* Optional arguments */
@@ -37,12 +38,13 @@ int main (int argc, char **argv) {
   /* Check the program arguments */
   if ((argc-1 >= NARGS) && (argc-1 <= NARGS + NARGSOPT)) {
     if ((finput = fopen(argv[1], "r")) == NULL) {
-      printf("*** Error: The input file \"%s\" could not be opened\n", argv[1]);
+      fprintf(stderr,
+          "*** Error: The input file \"%s\" could not be opened: %s\n",
+          argv[1], strerror(errno));
       exit(EXIT_FAILURE);
-    } else if ((move = atoi(argv[2])) < 0
-            || (move == 0 && strcmp(argv[2], "0"))) {
+    } else if ((move = atoi(argv[2])) == 0 && strcmp(argv[2], "0")) {
       fclose(finput);
-      printf("*** Error: Invalid move number \"%s\"\n", argv[2]);
+      fprintf(stderr, "*** Error: Invalid move number \"%s\"\n", argv[2]);
       exit(EXIT_FAILURE);
     } else if (argc-1 > NARGS) { /* Optional arguments */
       if (3 == argc-1) {
@@ -50,11 +52,13 @@ int main (int argc, char **argv) {
           side = tolower(argv[3][0]);
           if (side != 'w' && side != 'b') {
             fclose(finput);
-            printf("*** Error: Invalid side \"%s\"\n", argv[3]);
+            fprintf(stderr, "*** Error: Invalid side \"%s\"\n", argv[3]);
             exit(EXIT_FAILURE);
           }
         } else if ((foutput = fopen(argv[3], "w")) == NULL) {
-            printf("*** Error: The output file \"%s\" could not be opened\n", argv[3]);
+            fprintf(stderr,
+              "*** Error: The output file \"%s\" could not be opened: %s\n",
+              argv[3], strerror(errno));
             exit(EXIT_FAILURE);
         }
       } else { /* Four arguments */
@@ -62,16 +66,18 @@ int main (int argc, char **argv) {
           side = tolower(argv[3][0]);
           if (side != 'w' && side != 'b') {
             fclose(finput);
-            printf("*** Error: Invalid side \"%s\"\n", argv[3]);
+            fprintf(stderr, "*** Error: Invalid side \"%s\"\n", argv[3]);
             exit(EXIT_FAILURE);
           }
         } else {
             fclose(finput);
-            printf("*** Error: Invalid side \"%s\"\n", argv[3]);
+            fprintf(stderr, "*** Error: Invalid side \"%s\"\n", argv[3]);
             exit(EXIT_FAILURE);
         }
         if ((foutput = fopen(argv[4], "w")) == NULL) {
-            printf("*** Error: The output file \"%s\" could not be opened\n", argv[4]);
+            fprintf(stderr,
+              "*** Error: The output file \"%s\" could not be opened: %s\n",
+              argv[4], strerror(errno));
             exit(EXIT_FAILURE);
         }
 
@@ -146,7 +152,7 @@ int main (int argc, char **argv) {
   }
 
   /* Load the moves into the linked list */
-  while (!feof(finput) && ((ply+blackmove)/2 < move + blackmove)) {
+  while (!feof(finput) && (((ply+blackmove)/2 < move + blackmove) || move < 0)) {
     /* Add a new item to the list */
     y = calloc(1, sizeof(struct tlist));
     y->next = NULL;
@@ -227,13 +233,37 @@ int main (int argc, char **argv) {
       }
     }
 
-    x->next = y;
-    x = y;
-    ply++;
+    if ((y->move[0] == '0' || y->move[0] == '1') && y->move[1] == '-') {
+        free(y);
+    } else {
+        x->next = y;
+        x = y;
+        ply++;
+    }
+  }
+  ply = 0;
+  for (y = list->next; y && y->move[0]; y = y->next) {
+      ply++;
+  }
+  if (move < 0 && 0 <= (move + 1) + (ply - blackmove) / 2) {
+      move = (ply - blackmove)/2 + (move + 1);
+      clearerr(finput);
+      if (move == 0)
+          y->next = NULL;
+      else {
+          ply = 0;
+          for (y = list->next; y && y->move[0]; y = y->next) {
+              if (++ply == 2 * move + !blackmove) {
+                  y->next = NULL;
+                  break;
+              }
+          }
+      }
   }
 
   if (feof(finput)) {
-    printf("*** Error: Move number %d by %s does not exist\n", move, (side == 'w')?"white":"black");
+    fprintf(stderr, "*** Error: Move number %d by %s does not exist\n",
+            move, (side == 'w') ? "white" : "black");
     exit(EXIT_FAILURE);
   }
 
