@@ -1,19 +1,20 @@
 # pgn2fen
-Extracts FEN of a specific move on a PGN game
+Extract a FEN on a specific move from a PGN game.
 
 Compile:
 -------
-There's a Makefile just for that purpose, simply run:
+Simply run:
 
-make
+    make
 
 Instalation:
 -----------
-Sorry, no install commands or scripts. Just have fun, if you like it, install it by hand :)
+
+    make PREFIX=/usr/local install
 
 Running the program:
 --------------------
-Running the program with no arguments, or with an invalid set of arguments will produce the following help:
+Run the program without arguments or with invalid arguments to get help:
 
 Usage: ./pgn2fen input_game.pgn move [w/b] [output_position.fen]
 
@@ -21,9 +22,9 @@ Usage: ./pgn2fen input_game.pgn move [w/b] [output_position.fen]
 
   move                 - A move number.
 
-  w/b                  - OPTIONAL. Position reached after (w)hite or (b)lack move. Defaults to w.
+  w/b                  - OPTIONAL side to move. Defaults to w.
 
-  output_position.fen  - OPTIONAL. Output file. If not specified the output will be written to stdout.
+  output_position.fen  - OPTIONAL output file. Defaults to stdout.
 
 
 For example, if game.png contains:
