@@ -28,79 +28,78 @@
 #define WHITE 1            /* Used to determine which turn... */
 #define BLACK 0            /* ...is whilst traversing the list of moves */
 
+static void help(const char* prog) {
+  printf("Usage: %s input_game.pgn move [w/b] [output_position.fen]\n", prog);
+  printf("  input_game.pgn       - A chess game in PGN format.\n");
+  printf("  move                 - A move number.\n");
+  printf("  w/b                  - OPTIONAL. Position reached after (w)hite or (b)lack move. Defaults to w.\n");
+  printf("  output_position.fen  - OPTIONAL. Output file. If not specified the output will be written to stdout.\n");
+  printf("\n\nFor example, if game.pgn contains:\n");
+  printf("1. e4 c5 2. Nf3 d6\n");
+  printf("To print the position after white's second move:\n");
+  printf("%s game.pgn 2\n", prog);
+  printf("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2\n");
+  printf("To print the position after black's second move:\n");
+  printf("%s game.pgn 2 b\n", prog);
+  printf("rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3\n");
+  printf("\nNote: Since there's no way to get the initial position, i.e. before any player moves,\n");
+  printf("I'll provide it in case you need that:\n");
+  printf("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\n");
+}
+
 int main (int argc, char **argv) {
 
   int move /* move number argument */;
   char side = 'w'; /* Default side is white */
-  FILE   *finput, *foutput = NULL;
+  char *inputarg = NULL, *outputarg = NULL, *sidearg = NULL;
+  FILE *finput = NULL, *foutput = NULL;
   char fen[200] = "";
 
   /* Check the program arguments */
-  if ((argc-1 >= NARGS) && (argc-1 <= NARGS + NARGSOPT)) {
-    if ((finput = fopen(argv[1], "r")) == NULL) {
-      fprintf(stderr,
-          "*** Error: The input file \"%s\" could not be opened: %s\n",
-          argv[1], strerror(errno));
-      exit(EXIT_FAILURE);
-    } else if ((move = atoi(argv[2])) == 0 && strcmp(argv[2], "0")) {
-      fclose(finput);
+  if ((argc - 1 >= NARGS) && (argc - 1 <= NARGS + NARGSOPT)) {
+    inputarg = argv[1];
+    if ((move = atoi(argv[2])) == 0 && strcmp(argv[2], "0")) {
       fprintf(stderr, "*** Error: Invalid move number \"%s\"\n", argv[2]);
       exit(EXIT_FAILURE);
-    } else if (argc-1 > NARGS) { /* Optional arguments */
-      if (3 == argc-1) {
+    }
+    if (argc - 1 > NARGS) { /* Optional arguments */
+      if (3 == argc - 1) {
         if (strlen(argv[3]) == 1) {
-          side = tolower(argv[3][0]);
-          if (side != 'w' && side != 'b') {
-            fclose(finput);
-            fprintf(stderr, "*** Error: Invalid side \"%s\"\n", argv[3]);
-            exit(EXIT_FAILURE);
-          }
-        } else if ((foutput = fopen(argv[3], "w")) == NULL) {
-            fprintf(stderr,
-              "*** Error: The output file \"%s\" could not be opened: %s\n",
-              argv[3], strerror(errno));
-            exit(EXIT_FAILURE);
+          sidearg = argv[3];
+        } else {
+          outputarg = argv[3];
         }
       } else { /* Four arguments */
-        if (strlen(argv[3]) == 1) {
-          side = tolower(argv[3][0]);
-          if (side != 'w' && side != 'b') {
-            fclose(finput);
-            fprintf(stderr, "*** Error: Invalid side \"%s\"\n", argv[3]);
-            exit(EXIT_FAILURE);
-          }
-        } else {
-            fclose(finput);
-            fprintf(stderr, "*** Error: Invalid side \"%s\"\n", argv[3]);
-            exit(EXIT_FAILURE);
-        }
-        if ((foutput = fopen(argv[4], "w")) == NULL) {
-            fprintf(stderr,
-              "*** Error: The output file \"%s\" could not be opened: %s\n",
-              argv[4], strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-
+        sidearg = argv[3];
+        outputarg = argv[4];
       }
     }
   } else {
-    printf("Usage: %s input_game.pgn move [w/b] [output_position.fen]\n", argv[0]);
-    printf("  input_game.pgn       - A chess game in PGN format.\n");
-    printf("  move                 - A move number.\n");
-    printf("  w/b                  - OPTIONAL. Position reached after (w)hite or (b)lack move. Defaults to w.\n");
-    printf("  output_position.fen  - OPTIONAL. Output file. If not specified the output will be written to stdout.\n");
-    printf("\n\nFor example, if game.png contains:\n");
-    printf("1. e4 c5 2. Nf3 d6\n");
-    printf("To print the position after white's second move:\n");
-    printf("%s game.pgn 2\n", argv[0]);
-    printf("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2\n");
-    printf("To print the position after black's second move:\n");
-    printf("%s game.pgn 2 b\n", argv[0]);
-    printf("rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3\n");
-    printf("\nNote: Since there's no way to get the initial position, i.e. before any player moves,\n");
-    printf("I'll provide it in case you need that:\n");
-    printf("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\n");
+    help(argv[0]);
     exit(EXIT_FAILURE);
+  }
+  if (sidearg) {
+    if (strlen(sidearg) != 1 ||
+        ((side = tolower(*sidearg)) != 'w' && side != 'b')) {
+      fprintf(stderr, "*** Error: Invalid side \"%s\"\n", sidearg);
+      exit(EXIT_FAILURE);
+    }
+  }
+  if (inputarg) {
+    if ((finput = fopen(inputarg, "r")) == NULL) {
+      fprintf(stderr,
+          "*** Error: The input file \"%s\" could not be opened: %s\n",
+          inputarg, strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+  }
+  if (outputarg) {
+    if ((foutput = fopen(outputarg, "w")) == NULL) {
+      fprintf(stderr,
+          "*** Error: The output file \"%s\" could not be opened: %s\n",
+          outputarg, strerror(errno));
+      exit(EXIT_FAILURE);
+    }
   }
   /* Everything is ok, now let's work: */
 
