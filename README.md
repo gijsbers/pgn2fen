@@ -18,36 +18,34 @@ Run the program without arguments or with invalid arguments to get help:
 
 Usage: ./pgn2fen input_game.pgn move [w/b] [output_position.fen]
 
-  input_game.pgn       - A chess game in PGN format.
-
-  move                 - A move number.
-
-  w/b                  - OPTIONAL side to move. Defaults to w.
-
-  output_position.fen  - OPTIONAL output file. Defaults to stdout.
+>  input_game.pgn       - A chess game in PGN format.
+>
+>  move                 - A move number.
+>
+>  w/b                  - OPTIONAL side to move. Defaults to w.
+>
+>  output_position.fen  - OPTIONAL output file. Defaults to stdout.
 
 
 For example, if game.png contains:
 
-1. e4 c5 2. Nf3 d6
+    1. e4 c5 2. Nf3 d6
 
 To print the position after white's second move:
 
-./pgn2fen game.pgn 2
+    ./pgn2fen game.pgn 2
 
-rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
 
 To print the position after black's second move:
 
-./pgn2fen game.pgn 2 b
+    ./pgn2fen game.pgn 2 b
 
-rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
+    rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
 
-Note: Since there's no way to get the initial position, i.e. before any player moves,
+Note: Since there's no way to get the initial position, i.e. before any player moves, I'll provide it in case you need that:
 
-I'll provide it in case you need that:
-
-rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
 
 About PGN
@@ -84,16 +82,17 @@ Examples:
 
 Here is the FEN for the starting position:
 
-rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
 Here is the FEN after the move 1. e4:
 
-rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
+    rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
 
 And then after 1. ... c5:
 
-rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2
+    rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2
 
 And then after 2. Nf3:
 
-rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+
